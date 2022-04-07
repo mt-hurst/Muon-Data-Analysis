@@ -80,18 +80,13 @@ def cleanup_hists(dec_data,num = 3, cutoff = 5, printoutsteps=True, plots = Fals
   cf_old = cf0 #making the first instance of the coeff's recursive piece of the loop
   print('flat rate of pass 0',cf_old)
   h_flat0, bins_flat = np.histogram(dec_data, bins=10,range=(cutoff*(cf_old[1]),20000))
-  plt.semilogy(np.delete(bins,20), h0, 'o',ms= 4, label = "Raw Data")
+  if plots:
+    plt.semilogy(np.delete(bins,20), h0, 'o',ms= 4, label = "Raw Data")#plotting the 
   h_flat = sum(h_flat0)/len(h_flat0)
   for i in range(0,num):
     flatratenew = h_flat
     h_new = abs(h_old - flatratenew)
     cf_new, cv_new = op.curve_fit(exp_fit, range(0,20000,1000),h_new, p0=(max(h_new),(max(h_new)/2)))
-    flat_pts = []
-    flat_centers = []
-    #for k, j in zip(h_old,bin_centers):
-    #  if j >= cutoff*cf_new[1]:
-    #    flat_pts.append(k)
-    #    flat_centers.append(j)
     if printoutsteps: #When enabled, prints out the intermediate steps of the fits
       print("Flat rate of pass", i+1,flatratenew)
       print("Dec rate of pass", i+1, cf_new[1])
@@ -100,8 +95,30 @@ def cleanup_hists(dec_data,num = 3, cutoff = 5, printoutsteps=True, plots = Fals
       plt.errorbar(np.delete(bins,20), h_old,xerr=500,yerr=np.sqrt(h_old) ,fmt = 'x',label = "BackRemoved",ms = 2*(i+1))
       plt.plot(np.linspace(0,20000,20),exp_fit(np.linspace(0,20000,20),cf_new[0],cf_new[1]),'--',label = "Fit")
       plt.legend()
-    #for i,j in zip() 
     h_flat, h_flat_var = op.curve_fit(flat_fit,np.linspace(cutoff*cf_new[1],20000,10),h_new[11:], p0=sum(h_new[12:])/len(h_new[12:]))
-    #h_flat = sum(h_old[12:])/len(h_old[12:])
   print("Final rate",cf_new[1], "/pm", np.sqrt(cv_new[1][1]))
   print("Final covar", cv_new)
+  return cf_new[1] , np.sqrt(cv_new[1][1]) # returns the final decay lifetime in ns, and the error in the decay lifetime
+#end backround removal function
+t_obs , t_obs_err = cleanup_hists(decaytimes_total, num = 3 , )
+
+rho_obs = -(2197/2043)*((2043-t_obs)/(2197-t_obs))
+#print(rho_obs)
+def partial_rho_tpos(A,B,C):
+  return C*(B-C)/(B*(A-C)**2)
+def partial_rho_tneg(A,B,C):
+  return (-1)*(A*C)/((B**2)*(A-C))
+def partial_rho_tobs(A,B,C):
+  return (A*(A-B))/(B*(A-C)**2)
+
+def error_rho(p,A,B,C,Aerr,Berr,Cerr):
+  err = p*np.sqrt((Aerr*partial_rho_tpos(A,B,C))**2+(Berr*partial_rho_tneg(A,B,C))**2+(Cerr*partial_rho_tobs(A,B,C))**2)
+  print("Ratio +/- = ", round(p,2) , "/pm", round(err,2))
+  return p,err
+
+error_rho(rho_obs, 2197,2043,t_obs,0.4,3,terr) 
+# it should be noted that the error calculation is only affected in the third significant figure by Aerr and Berr
+# it is sufficient to only calculate the contribution from Cerr
+
+
+ 
